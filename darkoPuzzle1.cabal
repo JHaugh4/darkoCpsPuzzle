@@ -1,0 +1,31 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 5ab338d5674551c46d6c8430958c7edcb4359302ba06a80f28f72c6f207bb702
+
+name:           darkoPuzzle1
+version:        0.1.0.0
+category:       Web
+homepage:       https://github.com/githubuser/darkoPuzzle1#readme
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2020 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+
+executable darkoPuzzle1
+  main-is: Main.hs
+  other-modules:
+      Paths_darkoPuzzle1
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , mtl
+  default-language: Haskell2010
