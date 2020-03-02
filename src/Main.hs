@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad.State
 
+type Label  = String
 type Var    = String
 data Const  = Tru | Fls
 data PrimOp = Add | Sub | Mul
@@ -11,6 +12,7 @@ data Term = Var Var
           | App Term Term
           | Const Const
           | PrimApp PrimOp [Term]
+          | Record [(Label, Term)]
 
 toCPS_DanvyFilinski_HigherOrder_US :: Term -> (Term -> Term) -> Term
 toCPS_DanvyFilinski_HigherOrder_US t = (fst (runState (cc t) 1))
@@ -50,6 +52,17 @@ toCPS_DanvyFilinski_HigherOrder_US t = (fst (runState (cc t) 1))
         return (\kappa -> t1'
                  (\v1 -> t2'
                    (\v2 -> kappa (PrimApp p [v1, v2]))))
+
+answer :: [(Term -> Term) -> Term] -> ((Term -> Term) -> Term)
+answer []     = error "Not good"
+answer (t:ts) = \kappa -> t (answer' kappa ts [])
+
+freshLabels :: [Label]
+freshLabels = fmap show [ 0.. ]
+
+answer' :: (Term -> Term) -> [(Term -> Term) -> Term] -> [Term] -> Term -> Term
+answer' kappa [] vs     = \v -> kappa (Record $ zip freshLabels (vs ++ [v]))
+answer' kappa (t:ts) vs = \v -> t (answer' kappa ts (vs ++ [v]))
   
 main :: IO ()
 main = do
