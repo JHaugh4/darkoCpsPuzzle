@@ -43,20 +43,31 @@ toCPS_DanvyFilinski_HigherOrder_US t = (fst (runState (cc t) 1))
                               (Abs a (kappa (Var a))))))
       Const c ->
         return (\kappa -> kappa (Const c))
-      PrimApp p [t1] -> do
-        t1' <- cc t1
-        return (\kappa -> t1'
-                 (\v1 -> kappa (PrimApp p [v1])))
-      PrimApp p [t1, t2] -> do
-        t1' <- cc t1
-        t2' <- cc t2
-        return (\kappa -> t1'
-                 (\v1 -> t2'
-                   (\v2 -> kappa (PrimApp p [v1, v2]))))
-      Record rs -> do
-        let ls = fmap fst rs
-        let ts = fmap snd rs
+      PrimApp p ts -> do
         ts' <- traverse cc ts
+        -- General version
+        -- return $ answerGeneral (PrimApp p) ts'
+        return $ answerPrimApp p ts'
+      -- PrimApp p [t1] -> do
+      --   t1' <- cc t1
+      --   return (\kappa -> t1'
+      --            (\v1 -> kappa (PrimApp p [v1])))
+      -- PrimApp p [t1, t2] -> do
+      --   t1' <- cc t1
+      --   t2' <- cc t2
+      --   return (\kappa -> t1'
+      --            (\v1 -> t2'
+      --              (\v2 -> kappa (PrimApp p [v1, v2]))))
+      Record rs -> do
+        -- Get the labels
+        let ls = fmap fst rs
+        -- Get the terms
+        let ts = fmap snd rs
+        -- CPS each term
+        ts' <- traverse cc ts
+        -- General verions
+        -- return $ answerGeneral (\vs -> Record $ zip ls vs) ts'
+        -- Call answer on the list of labels and CPS'd terms
         return $ answer (zip ls ts')
 
 {-
@@ -68,7 +79,10 @@ toCPS_DanvyFilinski_HigherOrder_US t = (fst (runState (cc t) 1))
   list to collect the values.
 -}
 answer :: [(Label, (Term -> Term) -> Term)] -> ((Term -> Term) -> Term)
-answer []           = error "Not good"
+answer []           = error "empty list"
+--                    This is the final continuation that is called at the end of the computation
+--                    has to be carried through the computation
+--                    Add l to the list of labels cannot add anything to list of terms yet as it hasn't been calculated yet
 answer ((l, t):lts) = \kappa -> t (answer' kappa lts [l] [])
 
 {-
@@ -80,8 +94,34 @@ answer ((l, t):lts) = \kappa -> t (answer' kappa lts [l] [])
   use the continuation kappa to do the final collapse and hand the labels and values to Record.
 -}
 answer' :: (Term -> Term) -> [(Label, (Term -> Term) -> Term)] -> [Label] -> [Term] -> Term -> Term
+-- Base case use kappa to produce the final term from the reconstructed record
+-- ls and vs are carried throughout the computation to keep track of each records term
+-- Add the last v to the end of the list and use kappa to produce the final term
 answer' kappa [] ls vs           = \v -> kappa (Record $ zip ls (vs ++ [v]))
+-- For each element in the list of records produce a lambda with type Term -> Term
+-- Then use the given continuation t to collapse the recursive call to answer'
+-- Note that answer' is partially applied and returns Term -> Term which when t is applied to that
+-- produces Term which then makes the entire lambda Term -> Term just as we needed.
+-- This is why this works at each level t is collapsing the recursive call until you get to the base case
+-- and kappa does the final collapse.
 answer' kappa ((l, t):lts) ls vs = \v -> t (answer' kappa lts (ls ++ [l]) (vs ++ [v]))
+
+answerPrimApp :: PrimOp -> [(Term -> Term) -> Term] -> ((Term -> Term) -> Term)
+answerPrimApp pop [] = error "empty list"
+answerPrimApp pop (t:ts) = \kappa -> t (answerPrimApp' pop kappa ts [])
+
+answerPrimApp' :: PrimOp -> (Term -> Term) -> [(Term -> Term) -> Term] -> [Term] -> Term -> Term
+answerPrimApp' pop kappa [] vs = \v -> kappa (PrimApp pop (vs ++ [v]))
+answerPrimApp' pop kappa (t:ts) vs = \v -> t (answerPrimApp' pop kappa ts (vs ++ [v]))
+
+-- Fully general
+answerGeneral :: ([Term] -> Term) -> [(Term -> Term) -> Term] -> ((Term -> Term) -> Term)
+answerGeneral constr [] = error "empty list"
+answerGeneral constr (t:ts) = \kappa -> t (answerGeneral' constr kappa ts [])
+
+answerGeneral' :: ([Term] -> Term) -> (Term -> Term) -> [(Term -> Term) -> Term] -> [Term] -> Term -> Term
+answerGeneral' constr kappa [] vs = \v -> kappa (constr (vs ++ [v]))
+answerGeneral' constr kappa (t:ts) vs = \v -> t (answerGeneral' constr kappa ts (vs ++ [v]))
 
 testTerm1 :: Term
 testTerm1 = PrimApp Add [ Const $ IntConst 1, Const $ IntConst 2 ]
@@ -92,8 +132,15 @@ testTerm2 = PrimApp Add [ App (Abs "x" (Const $ IntConst 1)) (Const Tru), Const 
 testTerm3 :: Term
 testTerm3 = Record [("1", App (Abs "x" (Const $ IntConst 1)) (Const Tru)), ("2", Const $ IntConst 2), ("3", testTerm2)]
 
---answer' kappa [] vs     = \v -> kappa (PrimApp Add (vs ++ [v]))
-
 main :: IO ()
 main = do
-  putStrLn "hello world"
+  let f = flip toCPS_DanvyFilinski_HigherOrder_US $ id
+  putStrLn "Record Examples"
+  let recAns1 = f testTerm3
+  putStrLn $ "Term = " ++ show testTerm3 ++ "\nCPS Term = " ++ show recAns1
+
+  let primAns1 = f testTerm1
+  let primAns2 = f testTerm2
+
+  putStrLn $ "Term = " ++ show testTerm1 ++ "\nCPS Term = " ++ show primAns1
+  putStrLn $ "Term = " ++ show testTerm1 ++ "\nCPS Term = " ++ show primAns1
