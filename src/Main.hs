@@ -115,13 +115,19 @@ answerPrimApp' pop kappa [] vs = \v -> kappa (PrimApp pop (vs ++ [v]))
 answerPrimApp' pop kappa (t:ts) vs = \v -> t (answerPrimApp' pop kappa ts (vs ++ [v]))
 
 -- Fully general
-answerGeneral :: ([Term] -> Term) -> [(Term -> Term) -> Term] -> ((Term -> Term) -> Term)
+answerGeneral :: ([a] -> a) -> [(a -> a) -> a] -> ((a -> a) -> a)
 answerGeneral constr [] = error "empty list"
 answerGeneral constr (t:ts) = \kappa -> t (answerGeneral' constr kappa ts [])
 
-answerGeneral' :: ([Term] -> Term) -> (Term -> Term) -> [(Term -> Term) -> Term] -> [Term] -> Term -> Term
+answerGeneral' :: ([a] -> a) -> (a -> a) -> [(a -> a) -> a] -> [a] -> a -> a
 answerGeneral' constr kappa [] vs = \v -> kappa (constr (vs ++ [v]))
 answerGeneral' constr kappa (t:ts) vs = \v -> t (answerGeneral' constr kappa ts (vs ++ [v]))
+
+-- answerGeneralFold :: ([Term] -> Term) -> [(Term -> Term) -> Term] -> ((Term -> Term) -> Term)
+-- answerGeneralFold constr (t:ts) = \kappa -> t (answerGeneralFold' constr kappa ts [])
+
+-- answerGeneralFold' :: ([Term] -> Term) -> (Term -> Term) -> [(Term -> Term) -> Term] -> [Term] -> Term -> Term
+-- answerGeneralFold' constr kappa ts vs v = foldr (\t xs -> t $ answerGeneralFold' constr kappa xs (vs ++ [v])) (\v1 -> kappa . constr $ vs ++ [v1])
 
 testTerm1 :: Term
 testTerm1 = PrimApp Add [ Const $ IntConst 1, Const $ IntConst 2 ]
