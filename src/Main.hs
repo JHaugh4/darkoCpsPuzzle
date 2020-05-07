@@ -46,8 +46,8 @@ toCPS_DanvyFilinski_HigherOrder_US t = (fst (runState (cc t) 1))
       PrimApp p ts -> do
         ts' <- traverse cc ts
         -- General version
-        -- return $ answerGeneral (PrimApp p) ts'
-        return $ answerPrimApp p ts'
+        return $ answerGeneral (PrimApp p) ts'
+        --return $ answerPrimApp p ts'
       -- PrimApp p [t1] -> do
       --   t1' <- cc t1
       --   return (\kappa -> t1'
@@ -66,9 +66,9 @@ toCPS_DanvyFilinski_HigherOrder_US t = (fst (runState (cc t) 1))
         -- CPS each term
         ts' <- traverse cc ts
         -- General verions
-        -- return $ answerGeneral (\vs -> Record $ zip ls vs) ts'
+        return $ answerGeneral (\vs -> Record $ zip ls vs) ts'
         -- Call answer on the list of labels and CPS'd terms
-        return $ answer (zip ls ts')
+        --return $ answer (zip ls ts')
 
 {-
   Accepts the list of records where the term has already been cpsd.
@@ -116,7 +116,7 @@ answerPrimApp' pop kappa (t:ts) vs = \v -> t (answerPrimApp' pop kappa ts (vs ++
 
 -- Fully general
 answerGeneral :: ([a] -> a) -> [(a -> a) -> a] -> ((a -> a) -> a)
-answerGeneral constr [] = error "empty list"
+answerGeneral constr [] = \kappa -> constr []
 answerGeneral constr (t:ts) = \kappa -> t (answerGeneral' constr kappa ts [])
 
 answerGeneral' :: ([a] -> a) -> (a -> a) -> [(a -> a) -> a] -> [a] -> a -> a
